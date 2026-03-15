@@ -1,0 +1,26 @@
+{
+  "name": "mini-sglang-book",
+  "version": "1.0.0",
+  "description": "Mini-SGLang 源码解析 —— 500 行代码看懂推理引擎核心",
+  "main": "index.js",
+  "scripts": {
+    "docs:dev": "vitepress dev",
+    "docs:build": "vitepress build",
+    "docs:preview": "vitepress preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/coolclaws/mini-sglang-book.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/coolclaws/mini-sglang-book/issues"
+  },
+  "homepage": "https://github.com/coolclaws/mini-sglang-book#readme",
+  "devDependencies": {
+    "vitepress": "^1.6.4"
+  },
+  "type": "module"
+}

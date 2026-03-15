@@ -1,0 +1,29 @@
+<svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="engine-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#a78bfa"/>
+      <stop offset="100%" stop-color="#6d28d9"/>
+    </linearGradient>
+  </defs>
+  <!-- Background circle -->
+  <circle cx="60" cy="60" r="54" fill="url(#engine-gradient)" opacity="0.15"/>
+  <circle cx="60" cy="60" r="54" stroke="url(#engine-gradient)" stroke-width="3" fill="none"/>
+  <!-- Pipeline arrows: input → prefill → decode → output -->
+  <rect x="18" y="52" width="16" height="16" rx="3" fill="#a78bfa"/>
+  <text x="26" y="63" text-anchor="middle" fill="white" font-size="8" font-weight="bold">In</text>
+  <line x1="36" y1="60" x2="44" y2="60" stroke="#a78bfa" stroke-width="2"/>
+  <polygon points="44,57 48,60 44,63" fill="#a78bfa"/>
+  <rect x="48" y="48" width="24" height="24" rx="4" fill="#8b5cf6"/>
+  <text x="60" y="58" text-anchor="middle" fill="white" font-size="7" font-weight="bold">KV</text>
+  <text x="60" y="67" text-anchor="middle" fill="white" font-size="6">Cache</text>
+  <line x1="74" y1="60" x2="82" y2="60" stroke="#a78bfa" stroke-width="2"/>
+  <polygon points="82,57 86,60 82,63" fill="#a78bfa"/>
+  <rect x="86" y="52" width="16" height="16" rx="3" fill="#7c3aed"/>
+  <text x="94" y="63" text-anchor="middle" fill="white" font-size="7" font-weight="bold">Out</text>
+  <!-- Scheduler arc on top -->
+  <path d="M 30 42 Q 60 20 90 42" stroke="#a78bfa" stroke-width="2" fill="none" stroke-dasharray="4,3"/>
+  <text x="60" y="32" text-anchor="middle" fill="#8b5cf6" font-size="7" font-weight="bold">Scheduler</text>
+  <!-- Batch indicator at bottom -->
+  <rect x="38" y="80" width="44" height="12" rx="6" fill="#a78bfa" opacity="0.3"/>
+  <text x="60" y="89" text-anchor="middle" fill="#7c3aed" font-size="7">Batch</text>
+</svg>
