@@ -2,17 +2,17 @@ import { defineConfig } from 'vitepress'
 
 export default defineConfig({
   title: 'Mini-SGLang 源码解析',
-  description: '500 行代码看懂推理引擎核心——SGLang 最小可读实现深度剖析',
+  description: '5000 行代码看懂推理引擎核心——SGLang 最小可读实现深度剖析',
   lang: 'zh-CN',
 
-  base: '/',
+  base: '/mini-sglang-book/',
 
   head: [
     ['link', { rel: 'icon', type: 'image/png', href: '/logo.png' }],
     ['meta', { name: 'theme-color', content: '#a78bfa' }],
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:title', content: 'Mini-SGLang 源码解析' }],
-    ['meta', { property: 'og:description', content: '500 行代码看懂推理引擎核心——SGLang 最小可读实现深度剖析' }],
+    ['meta', { property: 'og:description', content: '5000 行代码看懂推理引擎核心——SGLang 最小可读实现深度剖析' }],
   ],
 
   themeConfig: {
