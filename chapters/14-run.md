@@ -1,4 +1,4 @@
-# 第 13 章 运行 Mini-SGLang
+# 第 14 章 运行 Mini-SGLang
 
 > "Talk is cheap. Show me the code." —— Linus Torvalds
 
@@ -6,7 +6,7 @@
 
 ---
 
-## 13.1 环境准备与安装
+## 14.1 环境准备与安装
 
 ### 硬件要求
 
@@ -49,7 +49,7 @@ pip install torch transformers flash-attn flashinfer fastapi uvicorn pyzmq
 
 ---
 
-## 13.2 启动服务器
+## 14.2 启动服务器
 
 Mini-SGLang 的入口点位于 `python/minisgl/__main__.py`，它调用 `launch_server()` 完成多进程启动。
 
@@ -62,7 +62,7 @@ python -m minisgl --model-path meta-llama/Llama-3.1-8B-Instruct
 ### 常用启动参数
 
 ```bash
-# 文件: python/minisgl/server/args.py
+# python/minisgl/server/args.py
 python -m minisgl \
     --model-path meta-llama/Llama-3.1-8B-Instruct \
     --host 0.0.0.0 \
@@ -104,7 +104,7 @@ python -m minisgl \
 
 ---
 
-## 13.3 调用 API
+## 14.3 调用 API
 
 Mini-SGLang 提供三个 HTTP 端点，定义在 `python/minisgl/server/api_server.py` 中。
 
@@ -153,7 +153,7 @@ curl http://localhost:1919/v1/models
 
 ---
 
-## 13.4 Shell 交互模式
+## 14.4 Shell 交互模式
 
 除了 API 服务，Mini-SGLang 还提供一个交互式 Shell 模式，非常适合开发调试。Shell 入口位于 `python/minisgl/shell.py`：
 
@@ -177,7 +177,7 @@ Shell 模式会自动将 `cuda_graph_max_bs` 和 `max_running_req` 设为 1，�
 
 ---
 
-## 13.5 环境变量配置
+## 14.5 环境变量配置
 
 Mini-SGLang 通过 `EnvClassSingleton`（文件 `python/minisgl/env.py`）管理环境变量。所有变量以 `MINISGL_` 为前缀：
 
@@ -204,7 +204,7 @@ MINISGL_SHELL_TEMPERATURE=0.3 MINISGL_DISABLE_OVERLAP_SCHEDULING=1 \
 
 ---
 
-## 13.6 基础性能测试
+## 14.6 基础性能测试
 
 ### 简单吞吐量测试
 
@@ -266,3 +266,6 @@ asyncio.run(benchmark())
 4. Shell 模式（`--shell-mode`）提供交互式终端对话，适合开发和快速验证。
 5. 环境变量以 `MINISGL_` 前缀管理，通过 `EnvClassSingleton` 单例在启动时自动加载。
 6. 性能测试应关注 TTFT、TPOT 和 Throughput 三个核心指标，可通过调整并发数、显存比例和 CUDA Graph 配置进行调优。
+<!--stackedit_data:
+eyJoaXN0b3J5IjpbMTU5NzAzNzU5Ml19
+-->

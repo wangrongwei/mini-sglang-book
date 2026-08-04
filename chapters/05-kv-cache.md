@@ -1,4 +1,4 @@
-# 第 4 章 KV Cache 的简化实现
+# 第 5 章 KV Cache 的简化实现
 
 > "推理引擎的大部分复杂度，都藏在 KV Cache 的管理里。"
 
@@ -8,7 +8,7 @@ Autoregressive 生成的每一步都需要对所有历史 token 做 attention �
 
 ---
 
-## 4.1 为什么 KV Cache 需要精心管理
+## 5.1 为什么 KV Cache 需要精心管理
 
 一个直觉的 KV Cache 实现是：为每个请求分配一个 `(seq_len, num_heads, head_dim)` 的连续张量。但这在 serving 场景下有严重问题：
 
@@ -23,7 +23,7 @@ Autoregressive 生成的每一步都需要对所有历史 token 做 attention �
 
 ---
 
-## 4.2 存储层：BaseKVCachePool 与 MHAKVCache
+## 5.2 存储层：BaseKVCachePool 与 MHAKVCache
 
 KV Cache 的物理存储由 `BaseKVCachePool` 抽象接口定义：
 
@@ -78,7 +78,8 @@ num_pages = 可用显存 / (2 × num_layers × page_size × kv_heads × head_dim
 
 ---
 
-## 4.3 Page Table：虚拟到物理的映射
+## 5.3 Page Table：虚拟到物理的映射
+虚拟是什么？物理又是什么？
 
 `Context` 持有的 `page_table` 是整个 KV Cache 管理的核心数据结构：
 
@@ -102,16 +103,79 @@ page_table:  [42]     [43]     [100]    [101]
 物理 buffer:  slot42   slot43   slot100  slot101
 ```
 
-注意 `page_table` 的注释写道"this table always treat page_size = 1"——即 `page_table` 是按 **token 粒度**索引的，即使底层物理存储按页对齐。这是 Mini-SGLang 的一个重要简化：page table 本身不需要理解页的概念，页对齐的逻辑完全交给分配器。
+注意 `page_table` 的注释写道"this table always treat page_size = 1"——即 `page_table` 是按 **token 粒度**索引的，若 page_size=16，则上面的token_2、token_3必须接着使用[44]、[45]，即底层物理存储必须按页对齐。这是 Mini-SGLang 的一个重要简化：page table 本身不需要理解页的概念，页对齐的逻辑完全交给分配器。
+
+### 5.3.1 page table 的初始化
+
+```
+# NOTE: 1. aligned to 128 bytes; 2. store raw locations instead of pages
+self.max_seq_len = min(config.max_seq_len, num_tokens)
+aligned_max_seq_len = _align_up_32(self.max_seq_len)
+
+self.ctx.page_table = self.page_table = torch.zeros(  # + 1 for dummy request
+    (config.max_running_req + 1, aligned_max_seq_len),
+    dtype=torch.int32,
+    device=self.device,
+)
+```
+它是一个在 GPU 上预分配的全局 2D Tensor（二维数组），类型为 int32。
+1. 行数 (Row)：max_running_req + 1
+    - 代表系统能同时处理的最大并发请求数（额外加 1 个是给 Dummy 请求占位用的）。
+    - 每个 Request（根据 req.table_idx）独占其中一行。
+2. 列数 (Column)：aligned_max_seq_len
+    - 代表模型支持的最大上下文长度（比如 4096），并且在底层做了对齐（_align_up_32，保证每行字节数是 128 bytes 的整数倍，这是为了 GPU 访存效率）。
+    - 它的每一列对应的是这个句子里的每一个具体的 Token。
+3. 内容 (Value)：Raw Locations (Token 的物理槽位号)
+    - 这是本项目最大的特点！ 传统的 PagedAttention，表里填的是“物理页号”。但在这里，填的是打平后的“物理 Token 的绝对存储下标”。
+
+### 5.3.2 结合CacheManager源码的具体举例
+为了看懂这个过程，必须结合 CacheManager 里的 _page_to_token 函数：
+```
+    def _page_to_token(self, pages: torch.Tensor) -> torch.Tensor:
+        # [X * page_size] -> [X * page_size, ..., X * page_size + page_size - 1]
+        ...
+```
+它负责把“按页分配出来的地”，强行铺平成一个个连续的 Token 坐标。举例推演：
+假设：
+- config.page_size = 16（每个物理页装 16 个 Token，vLLM 默认是 16）
+- 全局请求表只有 2 行，最大长度 32。
+- 初始时，所有位置填满 0（或 -1）。
+
+请求 A 到来：
+1. 内容长度为 3 个 Token。
+2. 虽然只有 3 个 Token，但 CacheManager 最低也是按“页”批地的（div_ceil 向上取整），所以它分配了 1 个物理页（所以page_size 设置太大，一个小请求就占了一个物理页，导致碎片化严重）。
+3. 假设 CacheManager 从空闲池 free_slots 拿到了第 1 页。由于代码里 free_slots 存的其实就是乘过 page_size 的偏移量，所以拿到的是数字 16。
+4. 关键一步 (_page_to_token)：把偏移量 16 展开成 16 个 Token 的绝对物理坐标，即 [16, 17, 18, 19, ..., 31]。
+5. 然后执行 _write_page_table，把这些坐标填入请求 A 所在的第 0 行的前 16 列：
+当前 page_table (简写部分列):
+```
+       Token_0  Token_1  Token_2  Token_3  ... Token_15  Token_16
+Row 0: [  16,      17,      18,      19,   ...    31,       0 ... ] 
+Row 1: [   0,       0,       0,       0,   ...     0,       0 ... ]
+```
+虽然只用了 3 个 Token（占用 16, 17, 18 三个槽位），但在 page_table 里会把这一整页 16 个槽位的映射关系全写上去（因为物理页是不可分割的）。
+请求 B 到来：
+前缀树 prefix_cache 匹配发现，请求 B 完全可以复用请求 A 的前 3 个 Token，然后它还需要自己生成剩下的词。
+这时，请求 B 会分配到第 1 行 (Row 1)：
+1. 它的前 3 列，会直接抄作业，填入被复用的物理槽位 [16, 17, 18]。
+2. 假设给它新批的地是第 2 页（偏移 32），那么从它的第 3 列开始，就会填入新展开的坐标 [32, 33, 34...]。
+```
+当前 page_table (简写部分列):
+       Token_0  Token_1  Token_2  | Token_3  Token_4 ...
+Row 0: [  16,      17,      18,   |   19,      20,   ... ]  <-- Req A 
+Row 1: [  16,      17,      18,   |   32,      33,   ... ]  <-- Req B (复用了 Req A 的 16~18 槽位)
+```
+mini-sglang 这么设计的原因是：传统的做法（表里只存 1 个数字：物理页号），GPU 在每次访问某个 Token 时，都要执行：真实的物理地址 = 页表[逻辑页号] * page_size + 逻辑 Token 偏移量。现在，CPU 端（_page_to_token）把这个算术题提前做好，直接把“绝对坐标”铺在了 page_table 上。所以 GPU 上的 FlashAttention 或 PagedAttention Kernel 在运行时，只需要执行极简的寻址：真实的物理地址 = 页表[当前 Token 索引]省去了乘法和加法。
+
 
 ---
 
-## 4.4 分配层：CacheManager
+## 5.4 分配层：CacheManager
 
 `CacheManager`（在 `scheduler/cache.py` 中）负责 KV Cache slot 的分配与回收：
 
 ```python
-# 文件: python/minisgl/scheduler/cache.py
+# python/minisgl/scheduler/cache.py
 
 class CacheManager:
     def __init__(self, num_pages: int, page_size: int, page_table: torch.Tensor, type: str):
@@ -130,7 +194,15 @@ class CacheManager:
 当一批请求需要新的 KV Cache 空间时，`allocate_paged()` 被调用：
 
 ```python
-# 文件: python/minisgl/scheduler/cache.py
+# python/minisgl/scheduler/cache.py
+run_forever
+  --> overlap_loop
+    --> _process_one_msg
+    --> _schedule_next_batch
+        --> prefill manager/schedule_next_batch
+        --> decode_manager/schedule_next_batch
+        --> _prepare_batch
+            --> allocate_paged
 
 def allocate_paged(self, reqs: List[Req]) -> None:
     needed_pages = 0
@@ -157,7 +229,17 @@ def allocate_paged(self, reqs: List[Req]) -> None:
 当空闲页不足时，`_allocate()` 会触发前缀缓存的 eviction：
 
 ```python
-# 文件: python/minisgl/scheduler/cache.py
+# python/minisgl/scheduler/cache.py
+run_forever
+  --> overlap_loop
+    --> _process_one_msg
+    --> _schedule_next_batch
+        --> prefill manager/schedule_next_batch
+        --> decode_manager/schedule_next_batch
+        --> _prepare_batch
+            --> allocate_paged
+                --> _allocate
+                    --> prefix_cache.evict # 如果free_slots不足，先尝试驱逐；
 
 def _allocate(self, needed_pages: int) -> torch.Tensor:
     if needed_pages > (free_pages := len(self.free_slots)):
@@ -169,15 +251,46 @@ def _allocate(self, needed_pages: int) -> torch.Tensor:
 ```
 
 这里体现了 Mini-SGLang 的内存管理策略：**空闲页优先，不够时从前缀缓存中逐出最久未使用的条目**。`evicted[:: self.page_size]` 的步长切片将 token 粒度的索引转换回页粒度。
+```python
+    def evict(self, size: int) -> torch.Tensor:
+        if size == 0:
+            return self.empty_tensor
+        assert (
+            size <= self.evictable_size
+        ), f"Cannot evict {size}, only {self.evictable_size} is evictable"
+
+        leave_nodes = self._collect_leave_nodes_for_evict()
+        heapq.heapify(leave_nodes)
+        evicted_indices: List[torch.Tensor] = []
+        evicted_size = 0
+
+        while evicted_size < size:
+            assert (
+                leave_nodes
+            ), f"Cannot evict enough cache, need {size}, only {evicted_size} evicted"
+            node = heapq.heappop(leave_nodes)
+            assert node.ref_count == 0 and node.is_leaf() and not node.is_root()
+            evicted_size += node.length
+            evicted_indices.append(node.value)
+            self.evictable_size -= node.length
+            parent = node.parent
+            del parent.children[self.key_fn(node._key)]
+            # NOTE: root is always protected, so won't be evicted
+            if parent.is_leaf() and parent.ref_count == 0:
+                heapq.heappush(leave_nodes, parent)
+
+        return torch.cat(evicted_indices)
+```
+
 
 ---
 
-## 4.5 前缀缓存：BaseCacheHandle 接口
+## 5.5 前缀缓存：BaseCacheHandle 接口
 
 `BaseCacheHandle` 是请求与前缀缓存之间的桥梁：
 
 ```python
-# 文件: python/minisgl/kvcache/base.py
+# python/minisgl/kvcache/base.py
 
 @dataclass(frozen=True)
 class BaseCacheHandle(ABC):
@@ -194,7 +307,7 @@ Mini-SGLang 提供两种前缀缓存实现：
 ### NaivePrefixCache：无缓存基线
 
 ```python
-# 文件: python/minisgl/kvcache/naive_cache.py
+# python/minisgl/kvcache/naive_cache.py
 
 class NaiveCacheHandle(BaseCacheHandle):
     empty_tensor: torch.Tensor
@@ -235,7 +348,7 @@ class NaivePrefixCache(BasePrefixCache):
 
 ---
 
-## 4.6 page_size 的作用
+## 5.6 page_size 的作用
 
 `page_size` 决定了分配的粒度。Mini-SGLang 支持 `page_size >= 1`：
 
@@ -245,7 +358,7 @@ class NaivePrefixCache(BasePrefixCache):
 `_page_to_token()` 方法展示了页到 token 的展开逻辑：
 
 ```python
-# 文件: python/minisgl/scheduler/cache.py
+# python/minisgl/scheduler/cache.py
 
 def _page_to_token(self, pages: torch.Tensor) -> torch.Tensor:
     if self.page_size == 1:
@@ -258,7 +371,7 @@ def _page_to_token(self, pages: torch.Tensor) -> torch.Tensor:
 
 ---
 
-## 4.7 与生产实现的对比
+## 5.7 与生产实现的对比
 
 Mini-SGLang 的 KV Cache 管理相比生产级实现做了以下简化：
 
@@ -276,7 +389,7 @@ Mini-SGLang 的 KV Cache 管理相比生产级实现做了以下简化：
 
 ---
 
-## 4.8 完整的 KV Cache 写入路径
+## 5.8 完整的 KV Cache 写入路径
 
 将上述组件串联起来，一次 prefill 的 KV Cache 写入路径如下：
 
@@ -301,3 +414,6 @@ Decode 阶段的路径相同，只是每轮只写入 1 个 token 的 KV（`exten
 3. `page_table` 实现虚拟到物理的映射——`page_table[table_idx, position]` 记录每个 token 的 KV 物理 slot
 4. `CacheManager` 通过 `free_slots` 张量管理空闲页，不足时从前缀缓存 evict，整个分配逻辑不到 30 行代码
 5. Mini-SGLang 用 `free_slots` 张量替代了生产级 BlockManager 的复杂管理逻辑，省略了 Copy-on-Write、swap、碎片整理等功能，但保留了页式分配和前缀复用这两个最核心的机制
+<!--stackedit_data:
+eyJoaXN0b3J5IjpbLTY0MzE1ODk5OV19
+-->

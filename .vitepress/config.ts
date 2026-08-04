@@ -1,8 +1,8 @@
 import { defineConfig } from 'vitepress'
 
 export default defineConfig({
-  title: 'Mini-SGLang 源码解析',
-  description: '5000 行代码看懂推理引擎核心——SGLang 最小可读实现深度剖析',
+  title: 'Mini-SGLang源码解析',
+  description: '5000行代码看懂推理引擎核心——SGLang 最小可读实现深度剖析',
   lang: 'zh-CN',
 
   base: '/mini-sglang-book/',
@@ -12,7 +12,7 @@ export default defineConfig({
     ['meta', { name: 'theme-color', content: '#a78bfa' }],
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:title', content: 'Mini-SGLang 源码解析' }],
-    ['meta', { property: 'og:description', content: '5000 行代码看懂推理引擎核心——SGLang 最小可读实现深度剖析' }],
+    ['meta', { property: 'og:description', content: '5000行代码看懂推理引擎核心——SGLang 最小可读实现深度剖析' }],
   ],
 
   themeConfig: {
@@ -45,41 +45,42 @@ export default defineConfig({
         collapsed: false,
         items: [
           { text: '第 3 章　Request 与 Sequence', link: '/chapters/03-request-sequence' },
-          { text: '第 4 章　KV Cache 的简化实现', link: '/chapters/04-kv-cache' },
+          { text: '第 4 章　tokenizer 与 detokenizer', link: '/chapters/04-tokenizer-detokenizer' },
+          { text: '第 5 章　KV Cache 的简化实现', link: '/chapters/05-kv-cache' },
         ],
       },
       {
         text: '第三部分：Prefill 与 Decode',
         collapsed: false,
         items: [
-          { text: '第 5 章　Prefill 过程', link: '/chapters/05-prefill' },
-          { text: '第 6 章　Decode 过程', link: '/chapters/06-decode' },
-          { text: '第 7 章　Continuous Batching 最小实现', link: '/chapters/07-continuous-batching' },
+          { text: '第 6 章　Prefill 过程', link: '/chapters/06-prefill' },
+          { text: '第 7 章　Decode 过程', link: '/chapters/07-decode' },
+          { text: '第 8 章　Continuous Batching 最小实现', link: '/chapters/08-continuous-batching' },
         ],
       },
       {
         text: '第四部分：调度器',
         collapsed: false,
         items: [
-          { text: '第 8 章　简化调度器设计', link: '/chapters/08-scheduler' },
-          { text: '第 9 章　内存感知调度', link: '/chapters/09-memory-aware' },
+          { text: '第 9 章　简化调度器设计', link: '/chapters/09-scheduler' },
+          { text: '第 10 章　内存感知调度', link: '/chapters/10-memory-aware' },
         ],
       },
       {
         text: '第五部分：与生产实现对比',
         collapsed: false,
         items: [
-          { text: '第 10 章　Mini vs SGLang：RadixAttention', link: '/chapters/10-vs-sglang' },
-          { text: '第 11 章　Mini vs vLLM：BlockManager', link: '/chapters/11-vs-vllm' },
-          { text: '第 12 章　从 Mini 到 Production', link: '/chapters/12-mini-to-prod' },
+          { text: '第 11 章　Mini vs SGLang：RadixAttention', link: '/chapters/11-vs-sglang' },
+          { text: '第 12 章　Mini vs vLLM：BlockManager', link: '/chapters/12-vs-vllm' },
+          { text: '第 13 章　从 Mini 到 Production', link: '/chapters/13-mini-to-prod' },
         ],
       },
       {
         text: '第六部分：动手实验',
         collapsed: false,
         items: [
-          { text: '第 13 章　运行 Mini-SGLang', link: '/chapters/13-run' },
-          { text: '第 14 章　扩展 Mini-SGLang', link: '/chapters/14-extend' },
+          { text: '第 14 章　运行 Mini-SGLang', link: '/chapters/14-run' },
+          { text: '第 15 章　扩展 Mini-SGLang', link: '/chapters/15-extend' },
         ],
       },
       {
@@ -109,6 +110,15 @@ export default defineConfig({
 
     search: {
       provider: 'local',
+    },
+    
+    editLink: {
+      pattern: 'https://github.com/wangrongwei/mini-sglang-book/edit/main/:path',
+      text: '在 GitHub 上编辑此页',
+    },
+
+    lastUpdated: {
+      text: '最后更新于',
     },
   },
 

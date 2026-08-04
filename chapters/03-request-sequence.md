@@ -43,7 +43,7 @@ class SamplingParams:
 `Req` 是调度器和引擎之间的核心接口。理解它的字段含义是读懂整个系统的前提：
 
 ```python
-# 文件: python/minisgl/core.py
+# python/minisgl/core.py
 
 @dataclass(eq=False)
 class Req:
@@ -79,7 +79,7 @@ class Req:
 由此派生出两个关键属性：
 
 ```python
-# 文件: python/minisgl/core.py
+# python/minisgl/core.py
 
 @property
 def remain_len(self) -> int:
@@ -115,7 +115,7 @@ page_table[req.table_idx] = [slot_0, slot_1, slot_2, ..., slot_N, 0, 0, ...]
 `table_idx` 的分配和回收由 `TableManager` 管理：
 
 ```python
-# 文件: python/minisgl/scheduler/table.py
+# python/minisgl/scheduler/table.py
 
 class TableManager:
     def __init__(self, max_running_reqs: int, page_table: torch.Tensor) -> None:
@@ -151,7 +151,7 @@ class TableManager:
 用户请求经过 Tokenizer 转换为 token IDs 后，以 `PendingReq` 的形式进入 `PrefillManager.pending_list`：
 
 ```python
-# 文件: python/minisgl/scheduler/utils.py (概念)
+# python/minisgl/scheduler/utils.py (概念)
 @dataclass
 class PendingReq:
     uid: int
@@ -167,7 +167,7 @@ class PendingReq:
 `PrefillAdder.try_add_one()` 为请求分配资源并创建 `Req` 对象：
 
 ```python
-# 文件: python/minisgl/scheduler/prefill.py
+# python/minisgl/scheduler/prefill.py
 
 def _add_one_req(self, pending_req, cache_handle, table_idx, cached_len) -> Req:
     remain_len = pending_req.input_len - cached_len
@@ -195,7 +195,7 @@ Prefill 完成后，`extend_len` 个 token 的 KV 被写入 Cache，`cached_len`
 Prefill 完成的 `Req`（非 `ChunkedReq`）进入 `DecodeManager.running_reqs`。每轮 decode：
 
 ```python
-# 文件: python/minisgl/core.py
+# python/minisgl/core.py
 
 def complete_one(self) -> None:
     self.cached_len = self.device_len
@@ -210,7 +210,7 @@ def append_host(self, next_token: torch.Tensor) -> None:
 每轮 decode 后检查终止条件：
 
 ```python
-# 文件: python/minisgl/core.py
+# python/minisgl/core.py
 
 @property
 def can_decode(self) -> bool:

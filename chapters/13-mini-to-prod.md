@@ -1,4 +1,4 @@
-# 第 12 章 从 Mini 到 Production 的演进路径
+# 第 13 章 从 Mini 到 Production 的演进路径
 
 > "The journey of a thousand miles begins with a single step." — Lao Tzu
 
@@ -6,7 +6,7 @@
 
 ---
 
-## 12.1 模块复杂度的增长顺序
+## 13.1 模块复杂度的增长顺序
 
 并非所有模块同时变复杂。从 Mini 到 Production，复杂度的增长有一个清晰的先后顺序：
 
@@ -27,7 +27,7 @@ Scheduler → Cache → Attention → Distributed
 
 ---
 
-## 12.2 第一步：Scheduler 的演进
+## 13.2 第一步：Scheduler 的演进
 
 ### Chunked Prefill 的深化
 
@@ -55,7 +55,7 @@ Mini-SGLang 的 overlap scheduling 使用 CUDA Stream 实现 CPU/GPU 并行。�
 
 ---
 
-## 12.3 第二步：Cache 的演进
+## 13.3 第二步：Cache 的演进
 
 ### 多层级缓存
 
@@ -81,7 +81,7 @@ Mini-SGLang 使用单一的 LRU 策略。生产版可能结合：
 
 ---
 
-## 12.4 第三步：Attention 的演进
+## 13.4 第三步：Attention 的演进
 
 ### FlashInfer 集成
 
@@ -101,7 +101,7 @@ Mini-SGLang 的 Engine 已经支持基本的 CUDA Graph capture。生产版在�
 
 ---
 
-## 12.5 第四步：Distributed 的演进
+## 13.5 第四步：Distributed 的演进
 
 ### Tensor Parallelism
 
@@ -127,7 +127,7 @@ Mini-SGLang 的 `Context` 中有 `moe_backend` 字段，表明它考虑了 MoE �
 
 ---
 
-## 12.6 新兴特性：Speculative Decoding
+## 13.6 新兴特性：Speculative Decoding
 
 Speculative Decoding 是 LLM 推理加速的重要方向：
 
@@ -148,7 +148,7 @@ Mini-SGLang 不涉及 Speculative Decoding，但理解了其基础架构后，�
 
 ---
 
-## 12.7 贡献者的实践路径
+## 13.7 贡献者的实践路径
 
 如果你希望参与 SGLang 的开源贡献，以下是一个推荐的渐进路径：
 
@@ -185,7 +185,7 @@ Mini-SGLang 不涉及 Speculative Decoding，但理解了其基础架构后，�
 
 ---
 
-## 12.8 从教学到生产的思维转变
+## 13.8 从教学到生产的思维转变
 
 最后，分享一些从 Mini 到 Production 需要的思维转变：
 
@@ -208,3 +208,6 @@ Mini-SGLang 不涉及 Speculative Decoding，但理解了其基础架构后，�
 5. **Distributed 的演进**包括 Tensor Parallelism 优化、Pipeline Parallelism、Expert Parallelism。
 6. **Speculative Decoding** 是对整个架构的全方位挑战，涉及 Scheduler、Cache、Attention、Engine 的协同改造。
 7. **贡献者路径**建议从阅读代码开始，经过文档和 bug 修复，逐步深入到功能和核心贡献。
+<!--stackedit_data:
+eyJoaXN0b3J5IjpbLTY4NzA1MDY0MF19
+-->

@@ -1,4 +1,4 @@
-# 第 7 章 Continuous Batching 最小实现
+# 第 8 章 Continuous Batching 最小实现
 
 > "Don't wait for the slowest; keep the fast ones moving." —— Continuous batching 的精髓在于不让已完成的请求占着 GPU 位置，也不让新请求苦等当前 batch 结束。
 
@@ -6,7 +6,7 @@
 
 ---
 
-## 7.1 Static Batching 的问题
+## 8.1 Static Batching 的问题
 
 假设一个 batch 包含 4 个请求，分别需要生成 10、50、200、5 个 token。在 static batching 下：
 
@@ -16,7 +16,7 @@
 
 这导致两个问题：**GPU 利用率低**（短序列完成后空转）和**延迟高**（新请求排队等待）。
 
-## 7.2 Continuous Batching 的核心思想
+## 8.2 Continuous Batching 的核心思想
 
 Continuous batching 的解决方案很直观：
 
@@ -28,7 +28,7 @@ Continuous batching 的解决方案很直观：
 
 ---
 
-## 7.3 Mini-SGLang 的实现
+## 8.3 Mini-SGLang 的实现
 
 ### 调度主循环
 
@@ -77,7 +77,7 @@ if finished and req not in self.finished_reqs:
 
 ---
 
-## 7.4 Prefill 与 Decode 的混合
+## 8.4 Prefill 与 Decode 的混合
 
 在完整的 SGLang 系统中，prefill 和 decode 可以在同一个 batch 中混合执行。Mini-SGLang 做了一个重要的简化：**每个 batch 要么全是 prefill，要么全是 decode**，不混合。
 
@@ -95,7 +95,7 @@ class Batch:
 
 ---
 
-## 7.5 CUDA Graph 的 Padding 策略
+## 8.5 CUDA Graph 的 Padding 策略
 
 Continuous batching 意味着 decode batch 的 size 在每步都可能变化（有请求完成退出，有请求 prefill 后加入）。但 CUDA graph 要求固定的 tensor shape。Mini-SGLang 通过 padding 解决这一矛盾：
 
@@ -114,7 +114,7 @@ def pad_batch(self, batch: Batch) -> None:
 
 ---
 
-## 7.6 Overlap Loop 与 Normal Loop
+## 8.6 Overlap Loop 与 Normal Loop
 
 Mini-SGLang 提供两种执行模式，`overlap_loop` 和 `normal_loop`，它们实现相同的 continuous batching 逻辑，但在 CPU-GPU 并行度上有所不同。
 
@@ -178,3 +178,6 @@ def overlap_loop(self, last_data: ForwardData | None) -> ForwardData | None:
 4. 每个 batch **不混合 prefill 和 decode**，简化了 attention backend 的实现，代价是 decode 请求偶尔暂停一步。
 5. **CUDA graph padding** 将动态 batch size 对齐到预捕获的离散 size，在灵活性和性能之间取得平衡。
 6. **Overlap loop** 通过双 CUDA stream 流水线化 CPU 处理和 GPU 计算，进一步提升吞吐量。
+<!--stackedit_data:
+eyJoaXN0b3J5IjpbMzI5NzkwMDc2XX0=
+-->

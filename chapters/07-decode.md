@@ -1,4 +1,4 @@
-# 第 6 章 Decode 过程
+# 第 7 章 Decode 过程
 
 > "One token at a time, but never one request at a time." —— Decode 阶段每步只生成一个 token，但通过 batching 让多个请求共享同一次 GPU 计算。
 
@@ -6,7 +6,7 @@ Prefill 阶段为序列铺设好了 KV cache，decode 阶段则在此基础上�
 
 ---
 
-## 6.1 单步 Token 生成循环
+## 7.1 单步 Token 生成循环
 
 Decode 的核心是一个不断重复的循环：读取 KV cache -> 模型前向计算 -> sampling -> 追加 token -> 检查是否结束。在 Mini-SGLang 中，这个循环并非显式的 `while` 循环，而是由 scheduler 的主循环驱动——每一轮调度都可能产生一个 decode batch。
 
@@ -33,7 +33,7 @@ class DecodeManager:
 
 ---
 
-## 6.2 KV Cache 读取与 FlashInfer
+## 7.2 KV Cache 读取与 FlashInfer
 
 Decode 阶段使用 FlashInfer（而非 prefill 阶段的 FlashAttention）作为 attention backend。原因在于 decode 的 query 长度始终为 1，FlashInfer 针对这种 "单 query 对长 key-value" 的模式做了专门优化。
 
@@ -45,7 +45,7 @@ Decode 阶段使用 FlashInfer（而非 prefill 阶段的 FlashAttention）作�
 
 ---
 
-## 6.3 CUDA Graph 优化
+## 7.3 CUDA Graph 优化
 
 Decode 阶段的一大特点是**计算模式高度固定**：每个请求贡献 1 个 query token，batch 中每个请求的计算量相同。Mini-SGLang 利用这一特性，通过 CUDA graph 消除 kernel launch 的开销。
 
@@ -116,7 +116,7 @@ def replay(self, batch: Batch) -> torch.Tensor:
 
 ---
 
-## 6.4 Logits Sampling
+## 7.4 Logits Sampling
 
 模型输出 logits 后，`Sampler` 负责从中选出下一个 token。Mini-SGLang 支持 greedy decoding 和基于概率的 sampling：
 
@@ -149,7 +149,7 @@ def sample_impl(logits, temperatures, top_k, top_p):
 
 ---
 
-## 6.5 Token 追加与完成判定
+## 7.5 Token 追加与完成判定
 
 Sampling 结果经异步拷贝回 CPU 后，`_process_last_data` 为每个请求追加新 token 并检查是否完成：
 
@@ -190,3 +190,6 @@ def _process_last_data(self, last_data):
 4. **Sampling** 支持 greedy（argmax）和概率采样（top-k、top-p），通过条件化的 tensor 分配避免不必要的开销。
 5. **`complete_one`** 每步推进 `cached_len` 和 `device_len`，保证 decode 的 `extend_len` 始终为 1。
 6. **完成判定** 基于长度限制和 EOS token 两个条件，完成的请求立即释放资源。
+<!--stackedit_data:
+eyJoaXN0b3J5IjpbNDExMTQzMjAxXX0=
+-->

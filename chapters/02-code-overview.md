@@ -106,7 +106,7 @@ python/minisgl/
   message/ (ZMQ 消息)
         │
         ▼
-  tokenizer/  ──────────────────────────────┐
+  tokenizer/  ------------------------------┐
         │  (token IDs)                      │ (detokenized text)
         ▼                                   │
   scheduler/scheduler.py                    │
@@ -126,7 +126,7 @@ python/minisgl/
                                             │
         │  (next token IDs)                 │
         ▼                                   │
-  scheduler/ (更新 Req 状态) ──────────────→┘
+  scheduler/ -----------------------------►-┘ (更新 Req 状态)
 ```
 
 关键依赖关系：
@@ -140,10 +140,11 @@ python/minisgl/
 
 ## 2.3 核心数据结构速览
 
+### 2.3.1 SamplingParams、Req、Batch和Context
 整个系统围绕 `core.py` 中定义的四个数据结构运转：
 
 ```python
-# 文件: python/minisgl/core.py
+# python/minisgl/core.py
 
 @dataclass
 class SamplingParams:
@@ -194,7 +195,7 @@ class Batch:
 `Batch` 是一次 forward pass 的输入打包。`phase` 字段区分 prefill 和 decode 两种计算模式。
 
 ```python
-# 文件: python/minisgl/core.py
+# python/minisgl/core.py
 
 @dataclass
 class Context:
@@ -211,6 +212,126 @@ class Context:
 ```
 
 `Context` 是全局单例，持有 KV Cache、page table、attention 后端等运行时状态。通过 `forward_batch()` 上下文管理器在 forward 期间绑定当前 Batch。
+
+### 2.3.2 PendingReq、TableManager
+PendingReq：请求在 CPU 中的存储方式。推理过程，需要拷贝到token_pool 中。
+```python
+@dataclass
+class PendingReq:
+    uid: int
+    input_ids: torch.Tensor
+    sampling_params: SamplingParams
+    chunked_req: ChunkedReq | None = None
+
+    @property
+    def input_len(self) -> int:
+        return len(self.input_ids)
+
+    @property
+    def output_len(self) -> int:
+        return self.sampling_params.max_tokens
+```
+
+```python
+class TableManager:
+    def __init__(self, max_running_reqs: int, page_table: torch.Tensor) -> None:
+        self._max_running_reqs = max_running_reqs
+        self._free_slots = list(range(max_running_reqs))
+        self.page_table = page_table
+        # NOTE: dummy request also use this pool to get the input ids, so we need to
+        # make sure the token pool is initialized with valid values (token_id = 0).
+        self.token_pool = torch.zeros_like(page_table, dtype=torch.int32)
+```
+token_pool：全局词汇池，表示在 GPU 中的请求存储方式。<br>
+page_table：token_pool 中对应 token 的 kv 数据存储的显存地址，主要用于底层的 Attention 计算。新请求如果命中了其他 kv cache，会将命中的 page_table 拷贝到新请求的 page_table 中。
+
+```python
+class ForwardOutput(NamedTuple):
+    next_tokens_gpu: torch.Tensor
+    next_tokens_cpu: torch.Tensor
+    copy_done_event: torch.cuda.Event
+
+# For overlap scheduling, we also need to cache some other data to avoid IMA
+class ForwardInput(NamedTuple):
+    batch: Batch
+    sample_args: BatchSamplingArgs
+    input_tuple: Indice2D  # (token_mapping, positions)
+    write_tuple: Indice2D  # (req_mapping, seq_lens or -1)
+
+
+ForwardData: TypeAlias = "Tuple[ForwardInput, ForwardOutput]"
+```
+
+### 2.3.3 消息结构体
+
+```python
+@dataclass
+class BaseTokenizerMsg:
+    @staticmethod
+    def encoder(msg: BaseTokenizerMsg) -> Dict:
+        return serialize_type(msg)
+
+    @staticmethod
+    def decoder(json: Dict) -> BaseTokenizerMsg:
+        return deserialize_type(globals(), json)
+
+
+@dataclass
+class BatchTokenizerMsg(BaseTokenizerMsg):
+    data: List[BaseTokenizerMsg]
+
+
+@dataclass
+class DetokenizeMsg(BaseTokenizerMsg):
+    uid: int
+    next_token: int
+    finished: bool
+
+
+@dataclass
+class TokenizeMsg(BaseTokenizerMsg):
+    uid: int
+    text: str | List[Dict[str, str]]
+    sampling_params: SamplingParams
+
+
+@dataclass
+class AbortMsg(BaseTokenizerMsg):
+    uid: int
+```
+BaseTokenizerMsg 是一个基类 dataclass，用于定义前端 API Server 与 Tokenizer/后端之间传输的通信消息基础格式。
+它本身提供统一的序列化（encoder）与反序列化（decoder）方法（序列化时会自动带上消息类型的名称字段 type），真正的消息格式由继承它的 4 种具体子类 组成：
+
+1. TokenizeMsg（分词/编码请求）：前端收到用户的 HTTP 请求后，打包发送给 Tokenizer 进程的文本编码消息：
+- uid (int)：当前请求的唯一 ID。
+- text (str | List[Dict[str, str]])：输入的提示词文本，或是 Chat 格式的对话列表（如 [{"role": "user", "content": "..."}]）。
+- sampling_params (SamplingParams)：采样参数对象（如 temperature, top_p, max_new_tokens, ignore_eos 等）。
+网络传输序列化 JSON/MsgPack 格式示例
+以 TokenizeMsg 为例，经过 serialize_type 编码后在 ZMQ 管道传输的 JSON/Dict 结构如下：
+```
+{
+  "type": "TokenizeMsg",
+  "uid": 1,
+  "text": "Hello, explain SGLang.",
+  "sampling_params": {
+    "temperature": 0.7,
+    "top_p": 0.95,
+    "max_new_tokens": 128,
+    "ignore_eos": false
+  }
+}
+```
+
+2. DetokenizeMsg（解码结果通知）：后端/调度器生成新 Token 后，回传给前端的解词消息：
+- uid (int)：对应请求的唯一 ID。
+- next_token (int)：本次推理刚刚生成的单步 Token ID。
+- finished (bool)：该请求是否已生成完毕（如遇到 EOS 或达到最大输出长度）。
+
+3. AbortMsg（取消请求）：客户端中途断开连接时，前端发送给后端的取消指令：
+- uid (int)：要中断/取消的请求 UID。
+
+4. BatchTokenizerMsg（批量消息包装）：用于将多条消息打包批量发送的容器：
+- data (List[BaseTokenizerMsg])：内含的消息列表（例如批量传输多条 TokenizeMsg）。
 
 ---
 

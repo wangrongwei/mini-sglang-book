@@ -2,8 +2,8 @@
 layout: home
 
 hero:
-  name: "Mini-SGLang 源码解析"
-  text: "500 行代码看懂推理引擎核心"
+  name: "Mini-SGLang源码解析"
+  text: "5000行代码看懂推理引擎核心"
   tagline: SGLang 最小可读实现深度剖析——从 Request 到 Token 输出，逐行拆解 Continuous Batching、KV Cache 与调度器的极简实现
   actions:
     - theme: brand
@@ -37,3 +37,6 @@ features:
     title: 与生产实现对比
     details: 逐一对比 Mini-SGLang 与 SGLang/vLLM 的设计取舍，理解 RadixAttention、PagedAttention 等生产级特性的演进路径。
 ---
+<!--stackedit_data:
+eyJoaXN0b3J5IjpbLTE1NTYyMzY2MTRdfQ==
+-->

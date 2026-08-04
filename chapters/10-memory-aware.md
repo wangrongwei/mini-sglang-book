@@ -1,4 +1,4 @@
-# 第 9 章 内存感知调度
+# 第 10 章 内存感知调度
 
 > "The art of memory management is deciding what to forget." — Anonymous
 
@@ -6,7 +6,7 @@ GPU 显存是推理服务中最稀缺的资源。一个设计良好的调度器�
 
 ---
 
-## 9.1 内存预算：从物理显存到逻辑页
+## 10.1 内存预算：从物理显存到逻辑页
 
 在 Engine 初始化阶段，系统首先计算可用于 KV Cache 的总显存：
 
@@ -33,7 +33,7 @@ Mini-SGLang 默认使用较小的 `page_size`，以在教学场景中展示最�
 
 ---
 
-## 9.2 CacheManager：页的分配与回收
+## 10.2 CacheManager：页的分配与回收
 
 `CacheManager` 是内存感知调度的核心组件，维护三类状态：
 
@@ -71,7 +71,7 @@ Mini-SGLang 的 `RadixPrefixCache` 使用 LRU（Least Recently Used）策略，�
 
 ---
 
-## 9.3 Scheduler 的准入决策
+## 10.3 Scheduler 的准入决策
 
 调度器在将请求加入 prefill batch 之前，通过 `PrefillAdder` 进行逐个准入检查：
 
@@ -102,7 +102,7 @@ class ChunkedReq:
 
 ---
 
-## 9.4 Decode 阶段的内存追踪
+## 10.4 Decode 阶段的内存追踪
 
 进入 decode 阶段后，`DecodeManager` 通过 `inflight_tokens` 属性持续追踪在途内存占用：
 
@@ -117,7 +117,7 @@ def inflight_tokens(self):
 
 ---
 
-## 9.5 Lazy Free：延迟释放的艺术
+## 10.5 Lazy Free：延迟释放的艺术
 
 `CacheManager` 提供了一个 `lazy_free_region` 上下文管理器，用于在 overlap scheduling 模式下安全释放内存：
 
@@ -134,7 +134,7 @@ def lazy_free_region(self):
 
 ---
 
-## 9.6 当 GPU 显存耗尽
+## 10.6 当 GPU 显存耗尽
 
 当所有页都被占用且没有可驱逐的前缀缓存时，系统会进入以下状态：
 
@@ -146,7 +146,7 @@ Mini-SGLang 没有实现请求抢占（preemption）——即不会中断正在 
 
 ---
 
-## 9.7 简化了什么，为什么这样简化
+## 10.7 简化了什么，为什么这样简化
 
 | 特性 | Mini-SGLang | 生产系统 (SGLang/vLLM) |
 |-----|-------------|----------------------|
@@ -168,3 +168,6 @@ Mini-SGLang 保留了内存感知调度的核心骨架——"检查 → 驱逐 �
 4. **分块机制**（ChunkedReq）从 token 维度控制单次 batch 的资源占用。
 5. **Lazy Free** 解决了 overlap scheduling 中 CPU/GPU 并行带来的内存竞态问题。
 6. **显存耗尽时**系统依赖 decode 完成自然释放，不支持请求抢占——这是对生产系统的有意简化。
+<!--stackedit_data:
+eyJoaXN0b3J5IjpbNTY5MTg4NTBdfQ==
+-->

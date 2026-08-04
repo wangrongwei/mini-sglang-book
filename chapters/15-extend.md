@@ -1,4 +1,4 @@
-# 第 14 章 扩展 Mini-SGLang
+# 第 15 章 扩展 Mini-SGLang
 
 > "The best way to learn is to do." —— Richard Feynman
 
@@ -6,7 +6,7 @@ Mini-SGLang 的代码结构清晰、模块化程度高，非常适合作为学�
 
 ---
 
-## 14.1 实例一：添加 Min-P Sampling
+## 15.1 实例一：添加 Min-P Sampling
 
 ### 背景
 
@@ -88,7 +88,7 @@ curl http://localhost:1919/generate \
 
 ---
 
-## 14.2 实例二：请求优先级调度
+## 15.2 实例二：请求优先级调度
 
 ### 背景
 
@@ -168,7 +168,7 @@ async def test_priority():
 
 ---
 
-## 14.3 实例三：添加 Metrics 端点
+## 15.3 实例三：添加 Metrics 端点
 
 ### 背景
 
@@ -257,7 +257,7 @@ curl http://localhost:1919/metrics
 
 ---
 
-## 14.4 代码修改定位指南
+## 15.4 代码修改定位指南
 
 下表汇总了常见扩展场景需要修改的文件：
 
@@ -273,7 +273,7 @@ curl http://localhost:1919/metrics
 
 ---
 
-## 14.5 测试策略
+## 15.5 测试策略
 
 Mini-SGLang 的模块化设计使得各组件可以相对独立地进行测试。
 
@@ -313,3 +313,6 @@ python -m minisgl --model-path meta-llama/Llama-3.1-8B-Instruct \
 3. 添加 Metrics 端点需要定义指标收集器、在 Scheduler 关键路径埋点、以及在 FastAPI 中注册新路由。
 4. Mini-SGLang 的模块化架构使得扩展点清晰可循：Sampling 在 `engine/`、调度在 `scheduler/`、API 在 `server/`、模型在 `models/`。
 5. 善用 `--dummy-weight` 参数可以在没有 GPU 模型权重的环境下进行功能开发和测试。
+<!--stackedit_data:
+eyJoaXN0b3J5IjpbLTIyMDY4MDhdfQ==
+-->

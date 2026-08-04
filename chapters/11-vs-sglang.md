@@ -1,4 +1,4 @@
-# 第 10 章 Mini vs SGLang：RadixAttention 的取舍
+# 第 11 章 Mini vs SGLang：RadixAttention 的取舍
 
 > "Perfection is achieved, not when there is nothing more to add, but when there is nothing left to take away." — Antoine de Saint-Exupéry
 
@@ -6,7 +6,7 @@ SGLang 的核心创新之一是 RadixAttention——一种基于 Radix Tree 的 
 
 ---
 
-## 10.1 RadixAttention：完整版 SGLang 的核心
+## 11.1 RadixAttention：完整版 SGLang 的核心
 
 ### 什么是 RadixAttention
 
@@ -38,7 +38,7 @@ SGLang 的 RadixAttention 包含以下核心能力：
 
 ---
 
-## 10.2 Mini-SGLang 保留了什么
+## 11.2 Mini-SGLang 保留了什么
 
 Mini-SGLang 的 `RadixPrefixCache`（位于 `kvcache/radix_cache.py`）确实实现了一棵 Radix Tree，保留了以下核心能力：
 
@@ -90,7 +90,7 @@ Lock/Unlock 机制确保正在使用的 KV Cache 不会被驱逐。这直接对�
 
 ---
 
-## 10.3 Mini-SGLang 简化了什么
+## 11.3 Mini-SGLang 简化了什么
 
 ### 简化一：单一 Key 生成策略
 
@@ -118,7 +118,7 @@ def _get_key_fn(self):
 
 ---
 
-## 10.4 完整对比
+## 11.4 完整对比
 
 | 特性 | SGLang (完整版) | Mini-SGLang |
 |-----|----------------|-------------|
@@ -136,7 +136,7 @@ def _get_key_fn(self):
 
 ---
 
-## 10.5 为什么这样取舍
+## 11.5 为什么这样取舍
 
 Mini-SGLang 的取舍遵循一个清晰的原则：**保留算法骨架，去除工程复杂度。**
 
@@ -170,3 +170,6 @@ Radix Tree 的核心算法——tree walk、split、LRU eviction、引用计数�
 3. **被简化的主要是工程层面的复杂度**：并发安全、多模态适配、Speculative Decoding 集成、跨 Worker 缓存协调。
 4. **取舍原则清晰**：保留"算法为什么正确"，去除"如何在生产中安全运行"，让学习者聚焦核心思想。
 5. 读者理解了 Mini-SGLang 的 RadixPrefixCache 后，阅读完整版 SGLang 的同名模块时会发现：核心逻辑一致，区别在于更多的边界处理和系统集成。
+<!--stackedit_data:
+eyJoaXN0b3J5IjpbNTU1MTkwODI3XX0=
+-->

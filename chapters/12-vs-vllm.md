@@ -1,4 +1,4 @@
-# 第 11 章 Mini vs vLLM：BlockManager 的取舍
+# 第 12 章 Mini vs vLLM：BlockManager 的取舍
 
 > "All problems in computer science can be solved by another level of indirection." — David Wheeler
 
@@ -6,7 +6,7 @@ vLLM 凭借 PagedAttention 开创了 LLM 推理的分页内存管理范式。Min
 
 ---
 
-## 11.1 vLLM 的 PagedAttention 架构
+## 12.1 vLLM 的 PagedAttention 架构
 
 ### 核心思想
 
@@ -48,7 +48,7 @@ vLLM 后续版本也引入了 prefix caching，通过对 Block 内容计算 hash
 
 ---
 
-## 11.2 Mini-SGLang 的 page_table 方案
+## 12.2 Mini-SGLang 的 page_table 方案
 
 ### 简洁的映射
 
@@ -89,7 +89,7 @@ def allocate_paged(self, reqs):
 
 ---
 
-## 11.3 逐项对比
+## 12.3 逐项对比
 
 ### 抽象层次
 
@@ -139,7 +139,7 @@ Mini-SGLang 的 `free_slots` 集合是一个扁平的页池，不区分存储层
 
 ---
 
-## 11.4 简化的代价
+## 12.4 简化的代价
 
 坦诚地说，Mini-SGLang 的简化是有代价的：
 
@@ -157,7 +157,7 @@ vLLM 通过 BlockAllocator 的内部管理可以缓解碎片问题。Mini-SGLang
 
 ---
 
-## 11.5 设计哲学的差异
+## 12.5 设计哲学的差异
 
 从更高的视角来看，vLLM 和 Mini-SGLang 代表了两种不同的设计哲学：
 
@@ -177,3 +177,6 @@ vLLM 通过 BlockAllocator 的内部管理可以缓解碎片问题。Mini-SGLang
 4. **Prefix Caching 路线不同**：vLLM 用 hash-based Block 匹配，Mini-SGLang 继承 SGLang 的 Radix Tree 方案。
 5. **简化的代价**包括无法支持 beam search、无 GPU-CPU swap、潜在的内存碎片。
 6. **两者互补**：Mini-SGLang 帮助读者建立分页内存管理的核心直觉，vLLM 展示了生产级系统如何在此基础上构建完整的内存管理栈。
+<!--stackedit_data:
+eyJoaXN0b3J5IjpbLTEwOTA3NDg1Ml19
+-->
